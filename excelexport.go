@@ -83,14 +83,14 @@ type ExcelHeader struct {
 	style int    //it's style ID
 }
 
-//func for how to get Value from the key defined.
+// func for how to get Value from the key defined.
 type GetCellValue func(key string, data map[string]interface{}) interface{}
 
 // simple return the value by key, if not existed, return the empty
 var GetCellValueSimple = func(key string, data map[string]interface{}) interface{} {
 	v, ok := data[key]
 	if !ok {
-		return ""
+		return key
 	}
 	return v
 }
@@ -107,6 +107,7 @@ var defaultStyle = &excelize.Style{
 
 type ExcelExport struct {
 	SheetName string
+	Index     bool
 	Columns   []*ExcelHeader
 	Style     *excelize.Style
 	Logger    *zap.Logger
@@ -140,7 +141,10 @@ func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) e
 
 	index := &ExcelHeader{Title: "Index"}
 	index.style = styleID
-	st.SetHeader(index)
+	if ee.Index {
+		st.SetHeader(index)
+	}
+
 	for _, item := range ee.Columns {
 		item.style = styleID
 		st.SetHeader(item)
@@ -149,7 +153,10 @@ func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) e
 
 	for index, row := range data {
 		st.NextRow()
-		st.SetValue(index + 1)
+		if ee.Index {
+			st.SetValue(index + 1)
+		}
+
 		for _, item := range ee.Columns {
 			value := ee.Mode(item.Key, row)
 			// st.SetString(fmt.Sprintf("%s", value))
