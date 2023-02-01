@@ -128,7 +128,8 @@ func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) e
 		return err
 	}
 
-	if f.GetSheetIndex(ee.SheetName) == -1 {
+	i, _ := f.GetSheetIndex(ee.SheetName)
+	if i == -1 {
 		f.NewSheet(ee.SheetName)
 		ee.Logger.Info("create new sheet", zap.String("sheet", ee.SheetName))
 	}
