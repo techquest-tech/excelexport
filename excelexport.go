@@ -107,7 +107,7 @@ var defaultStyle = &excelize.Style{
 
 type ExcelExport struct {
 	SheetName string
-	Index     bool
+	Index     bool //similar to pandas export setting if included Index.
 	Columns   []*ExcelHeader
 	Style     *excelize.Style
 	Logger    *zap.Logger
