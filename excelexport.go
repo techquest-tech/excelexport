@@ -115,6 +115,10 @@ type ExcelExport struct {
 }
 
 func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) error {
+	if ee.Logger == nil {
+		ee.Logger = zap.L()
+	}
+
 	if ee.Style == nil {
 		ee.Style = defaultStyle
 	}
