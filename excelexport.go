@@ -114,7 +114,7 @@ type ExcelExport struct {
 	Mode      GetCellValue
 }
 
-func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) error {
+func (ee *ExcelExport) ExportByRow(f *excelize.File, data [][]interface{}) error {
 	if ee.Logger == nil {
 		ee.Logger = zap.L()
 	}
@@ -156,19 +156,95 @@ func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) e
 	}
 	ee.Logger.Info("write headers done.")
 
-	for index, row := range data {
-		st.NextRow()
-		if ee.Index {
-			st.SetValue(index + 1)
-		}
+	streamWriter, err := f.NewStreamWriter(ee.SheetName)
+	if err != nil {
+		ee.Logger.Error("create stream writer failed", zap.Error(err))
+		return err
+	}
 
-		for _, item := range ee.Columns {
-			value := ee.Mode(item.Key, row)
-			// st.SetString(fmt.Sprintf("%s", value))
-			st.SetValue(value)
-			ee.Logger.Debug("set cell value", zap.Int("x", st.Row), zap.Int("y", st.Col), zap.Any("value", value))
+	for index, row := range data {
+		cell, err := excelize.CoordinatesToCellName(1, index+2)
+		if err != nil {
+			ee.Logger.Error("get cell name failed", zap.Error(err))
+			return err
 		}
-		ee.Logger.Debug("write row done", zap.Int("row", index))
+		err = streamWriter.SetRow(cell, row)
+		if err != nil {
+			ee.Logger.Error("write row failed", zap.Error(err), zap.Int("index", index))
+			return err
+		}
+	}
+	streamWriter.Flush()
+	return nil
+}
+
+func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) error {
+	if ee.Logger == nil {
+		ee.Logger = zap.L()
+	}
+
+	if ee.Style == nil {
+		ee.Style = defaultStyle
+	}
+	if ee.Mode == nil {
+		ee.Mode = GetCellValueSimple
+	}
+
+	styleID, err := f.NewStyle(ee.Style)
+	if err != nil {
+		ee.Logger.Error("create style failed", zap.Error(err))
+		return err
+	}
+
+	i, _ := f.GetSheetIndex(ee.SheetName)
+	if i == -1 {
+		f.NewSheet(ee.SheetName)
+		ee.Logger.Info("create new sheet", zap.String("sheet", ee.SheetName))
+	}
+
+	st := &Sheet{
+		File: f,
+		Name: ee.SheetName,
+		Row:  1,
+	}
+
+	index := &ExcelHeader{Title: "Index"}
+	index.style = styleID
+	if ee.Index {
+		st.SetHeader(index)
+	}
+
+	for _, item := range ee.Columns {
+		item.style = styleID
+		st.SetHeader(item)
+	}
+	ee.Logger.Info("write headers done.")
+	streamWriter, err := f.NewStreamWriter(ee.SheetName)
+	if err != nil {
+		ee.Logger.Error("create stream writer failed", zap.Error(err))
+		return err
+	}
+
+	for index, row := range data {
+		// st.NextRow()
+		// if ee.Index {
+		// 	st.SetValue(index + 1)
+		// }
+		values := make([]any, 0, len(ee.Columns))
+		for _, item := range ee.Columns {
+			// value := ee.Mode(item.Key, row)
+			// // st.SetString(fmt.Sprintf("%s", value))
+			// st.SetValue(value)
+			// ee.Logger.Debug("set cell value", zap.Int("x", st.Row), zap.Int("y", st.Col), zap.Any("value", value))
+			values = append(values, ee.Mode(item.Key, row))
+		}
+		cell, _ := excelize.CoordinatesToCellName(1, index+2)
+		err = streamWriter.SetRow(cell, values)
+		if err != nil {
+			ee.Logger.Error("write row failed", zap.Error(err), zap.Int("index", index))
+			return err
+		}
+		ee.Logger.Info("write row done", zap.Int("row", index))
 	}
 
 	ee.Logger.Info("write data done.", zap.String("sheet", ee.SheetName), zap.Int("rows", st.Row))
