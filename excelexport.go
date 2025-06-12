@@ -59,7 +59,7 @@ func (s *Sheet) SetString(value string) {
 }
 
 func (s *Sheet) SetInt(value int, style ...int) {
-	s.File.SetCellInt(s.Name, s.GetAxis(), value)
+	s.File.SetCellInt(s.Name, s.GetAxis(), int64(value))
 	s.Col = s.Col + 1
 }
 
