@@ -90,7 +90,7 @@ type GetCellValue func(key string, data map[string]interface{}) interface{}
 var GetCellValueSimple = func(key string, data map[string]interface{}) interface{} {
 	v, ok := data[key]
 	if !ok {
-		return key
+		return nil
 	}
 	return v
 }
