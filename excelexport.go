@@ -140,7 +140,10 @@ func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) e
 
 	defer streamWriter.Flush()
 
-	firstRow := make([]any, 0, len(ee.Columns))
+	firstRow := make([]any, 0, len(ee.Columns)+1)
+	if ee.Index {
+		firstRow = append(firstRow, "Index")
+	}
 	for _, item := range ee.Columns {
 		firstRow = append(firstRow, item.Title)
 	}
@@ -150,10 +153,10 @@ func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) e
 
 	for index, row := range data {
 		// st.NextRow()
-		// if ee.Index {
-		// 	st.SetValue(index + 1)
-		// }
-		values := make([]any, 0, len(ee.Columns))
+		values := make([]any, 0, len(ee.Columns)+1)
+		if ee.Index {
+			values = append(values, index+1)
+		}
 		for _, item := range ee.Columns {
 			// value := ee.Mode(item.Key, row)
 			// // st.SetString(fmt.Sprintf("%s", value))
