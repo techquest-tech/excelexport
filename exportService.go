@@ -3,6 +3,7 @@ package excelexport
 import (
 	"io"
 
+	"github.com/techquest-tech/gin-shared/pkg/orm"
 	"github.com/techquest-tech/gin-shared/pkg/query"
 	"github.com/xuri/excelize/v2"
 	"go.uber.org/zap"
@@ -23,6 +24,7 @@ type ExportDefine struct {
 func (es *ExportService) Init() {
 	for _, item := range es.Exports {
 		item.Output.Logger = es.Logger
+		item.Query.Sql = orm.ReplaceTablePrefix(item.Query.Sql)
 	}
 }
 
