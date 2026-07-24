@@ -2,8 +2,6 @@ package excelexport
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/xuri/excelize/v2"
 	"go.uber.org/zap"
@@ -164,27 +162,7 @@ func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) e
 			// // st.SetString(fmt.Sprintf("%s", value))
 			// st.SetValue(value)
 			// ee.Logger.Debug("set cell value", zap.Int("x", st.Row), zap.Int("y", st.Col), zap.Any("value", value))
-			// values = append(values, ee.Mode(item.Key, row))
-			value := ee.Mode(item.Key, row)
-			switch v := value.(type) {
-			case string:
-				trimmed := strings.TrimSpace(v)
-				if trimmed == "" {
-					values = append(values, "")
-					continue
-				}
-				if i, errNum := strconv.ParseInt(trimmed, 10, 64); errNum == nil {
-					values = append(values, i)
-					continue
-				}
-				if f64, errNum := strconv.ParseFloat(trimmed, 64); errNum == nil {
-					values = append(values, f64)
-					continue
-				}
-				values = append(values, v)
-			default:
-				values = append(values, v)
-			}
+			values = append(values, ee.Mode(item.Key, row))
 		}
 		cell, _ := excelize.CoordinatesToCellName(1, index+2)
 		err = streamWriter.SetRow(cell, values)
