@@ -1,7 +1,10 @@
 package excelexport
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/xuri/excelize/v2"
 	"go.uber.org/zap"
@@ -106,12 +109,68 @@ var defaultStyle = &excelize.Style{
 }
 
 type ExcelExport struct {
-	SheetName string
-	Index     bool //similar to pandas export setting if included Index.
-	Columns   []*ExcelHeader
-	Style     *excelize.Style
-	Logger    *zap.Logger
-	Mode      GetCellValue
+	SheetName        string
+	Index            bool //similar to pandas export setting if included Index.
+	Columns          []*ExcelHeader
+	Style            *excelize.Style
+	Logger           *zap.Logger
+	Mode             GetCellValue
+	KeepAsStringCols []string
+}
+
+func parseNumericString(value string) interface{} {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	if i, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
+		return i
+	}
+	if f64, err := strconv.ParseFloat(trimmed, 64); err == nil {
+		return f64
+	}
+	return value
+}
+
+func (ee *ExcelExport) ShouldKeepAsString(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" || len(ee.KeepAsStringCols) == 0 {
+		return false
+	}
+	for _, col := range ee.KeepAsStringCols {
+		if strings.EqualFold(strings.TrimSpace(col), key) {
+			return true
+		}
+	}
+	return false
+}
+
+func (ee *ExcelExport) NormalizeCellValue(key string, value interface{}) interface{} {
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return i
+		}
+		if f64, err := v.Float64(); err == nil {
+			return f64
+		}
+		return v.String()
+	case []byte:
+		s := string(v)
+		if ee.ShouldKeepAsString(key) {
+			return s
+		}
+		return parseNumericString(s)
+	case string:
+		if ee.ShouldKeepAsString(key) {
+			return v
+		}
+		return parseNumericString(v)
+	default:
+		return v
+	}
 }
 
 func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) error {
@@ -162,7 +221,9 @@ func (ee *ExcelExport) Export(f *excelize.File, data []map[string]interface{}) e
 			// // st.SetString(fmt.Sprintf("%s", value))
 			// st.SetValue(value)
 			// ee.Logger.Debug("set cell value", zap.Int("x", st.Row), zap.Int("y", st.Col), zap.Any("value", value))
-			values = append(values, ee.Mode(item.Key, row))
+			//values = append(values, ee.Mode(item.Key, row))
+			value := ee.Mode(item.Key, row)
+			values = append(values, ee.NormalizeCellValue(item.Key, value))
 		}
 		cell, _ := excelize.CoordinatesToCellName(1, index+2)
 		err = streamWriter.SetRow(cell, values)
